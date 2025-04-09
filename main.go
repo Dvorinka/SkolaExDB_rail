@@ -14,7 +14,7 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-const openRouterAPIKey = "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"
+const openRouterAPIKey = "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"
 const openRouterEndpoint = "https://openrouter.ai/api/v1/chat/completions"
 
 type Message struct {
