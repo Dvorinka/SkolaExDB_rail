@@ -80,12 +80,10 @@ Správná odpověď: %s`, question, correctAnswer)
 	lines := strings.Split(responseText, "\n")
 	var wrongAnswers []string
 	for _, line := range lines {
+		// Clean up the line by removing the numbering, asterisks, and extra spaces
 		line = strings.TrimSpace(strings.TrimLeft(line, "-0123456789. *"))
-		if line != "" {
+		if line != "" && len(wrongAnswers) < 3 {
 			wrongAnswers = append(wrongAnswers, line)
-		}
-		if len(wrongAnswers) == 3 {
-			break
 		}
 	}
 
