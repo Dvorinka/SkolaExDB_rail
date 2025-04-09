@@ -39,7 +39,19 @@ func convertExcelToText(file io.Reader) (string, error) {
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
-	r.ParseMultipartForm(10 << 20) // 10MB limit
+	// CORS headers
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+
+	// Handle preflight (OPTIONS)
+	if r.Method == "OPTIONS" {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// Parse file
+	r.ParseMultipartForm(10 << 20) // 10MB
 
 	file, _, err := r.FormFile("file")
 	if err != nil {
@@ -54,6 +66,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
 		"result": convertedText,
 	})
