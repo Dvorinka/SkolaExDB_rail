@@ -51,7 +51,7 @@ Správná odpověď: %s`, question, correctAnswer)
 	req, _ := http.NewRequest("POST", openRouterEndpoint, bytes.NewBuffer(bodyBytes))
 	req.Header.Set("Authorization", "Bearer "+openRouterAPIKey)
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("HTTP-Referer", "https://tdvorak.dev")
+	req.Header.Set("HTTP-Referer", "*")
 	req.Header.Set("X-Title", "Excel Špatné Odpovědi")
 
 	client := &http.Client{}
