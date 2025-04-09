@@ -14,7 +14,7 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-const openRouterAPIKey = "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"
+const openRouterAPIKey = "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"
 const openRouterEndpoint = "https://openrouter.ai/api/v1/chat/completions"
 
 type Message struct {
@@ -34,15 +34,16 @@ type OpenRouterResponse struct {
 }
 
 func getWrongAnswers(question, correctAnswer string) ([]string, error) {
-	prompt := fmt.Sprintf(`Vygeneruj tři špatné, ale věrohodné odpovědi k následující otázce. Neuváděj správnou odpověď. Vrať pouze seznam tří špatných odpovědí.
+	log.Println("Preparing prompt for AI with question:", question)
+	prompt := fmt.Sprintf(`Vygeneruj tři špatné, ale věrohodné odpovědi k následující otázce. Neuváděj správnou odpověď. Odpovědi uveď v následujícím formátu, každou odpověď začni hvězdičkou (asterisk):
 
 Otázka: %s
 Správná odpověď: %s`, question, correctAnswer)
 
 	payload := OpenRouterRequest{
-		Model: "meta-llama/llama-3.2-1b-instruct:free",
+		Model: "meta-llama/llama-4-scout:free",
 		Messages: []Message{
-			{Role: "system", Content: "Jsi asistent pro tvorbu kvízových otázek na českých školách."},
+			{Role: "system", Content: "Jsi asistent pro tvorbu kvízových otázek na českých středních a vysokých školách."},
 			{Role: "user", Content: prompt},
 		},
 	}
@@ -57,24 +58,29 @@ Správná odpověď: %s`, question, correctAnswer)
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
+		log.Println("Error making request to OpenRouter API:", err)
 		return nil, err
 	}
 	defer resp.Body.Close()
 
 	resBody, _ := ioutil.ReadAll(resp.Body)
+	log.Println("Received response from OpenRouter API:", string(resBody))
 
 	var parsed OpenRouterResponse
 	err = json.Unmarshal(resBody, &parsed)
 	if err != nil || len(parsed.Choices) == 0 {
+		log.Println("Error parsing AI response or empty choices")
 		return nil, fmt.Errorf("chyba při zpracování odpovědi AI")
 	}
 
 	responseText := parsed.Choices[0].Message.Content
-	lines := strings.Split(responseText, "\n")
+	log.Println("AI response text:", responseText)
 
+	// Split the response into lines and extract the wrong answers
+	lines := strings.Split(responseText, "\n")
 	var wrongAnswers []string
 	for _, line := range lines {
-		line = strings.TrimSpace(strings.TrimLeft(line, "-0123456789. "))
+		line = strings.TrimSpace(strings.TrimLeft(line, "-0123456789. *"))
 		if line != "" {
 			wrongAnswers = append(wrongAnswers, line)
 		}
@@ -83,12 +89,15 @@ Správná odpověď: %s`, question, correctAnswer)
 		}
 	}
 
+	log.Println("Generated wrong answers:", wrongAnswers)
 	return wrongAnswers, nil
 }
 
 func convertExcelToText(file io.Reader) (string, error) {
+	log.Println("Starting to read Excel file")
 	f, err := excelize.OpenReader(file)
 	if err != nil {
+		log.Println("Error opening Excel file:", err)
 		return "", err
 	}
 	defer f.Close()
@@ -96,9 +105,11 @@ func convertExcelToText(file io.Reader) (string, error) {
 	sheet := f.GetSheetName(0)
 	rows, err := f.GetRows(sheet)
 	if err != nil {
+		log.Println("Error reading rows from Excel sheet:", err)
 		return "", err
 	}
 
+	log.Println("Reading rows from Excel sheet:", len(rows))
 	var result string
 	for _, row := range rows {
 		if len(row) < 2 {
@@ -107,9 +118,10 @@ func convertExcelToText(file io.Reader) (string, error) {
 		question := row[0]
 		correct := row[1]
 
+		log.Println("Processing question:", question, "with correct answer:", correct)
 		wrongAnswers, err := getWrongAnswers(question, correct)
 		if err != nil {
-			log.Println("Chyba při získávání špatných odpovědí:", err)
+			log.Println("Error getting wrong answers:", err)
 			continue
 		}
 
@@ -119,6 +131,7 @@ func convertExcelToText(file io.Reader) (string, error) {
 			result += fmt.Sprintf("...%s\n", wrong)
 		}
 	}
+	log.Println("Finished processing Excel file")
 	return result, nil
 }
 
@@ -139,6 +152,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	file, _, err := r.FormFile("file")
 	if err != nil {
+		log.Println("Error processing file upload:", err)
 		http.Error(w, "Chyba při nahrávání souboru", http.StatusBadRequest)
 		return
 	}
@@ -146,10 +160,12 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	convertedText, err := convertExcelToText(file)
 	if err != nil {
+		log.Println("Error converting Excel to text:", err)
 		http.Error(w, "Chyba při zpracování souboru: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	log.Println("Returning converted text in response")
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
 		"result": convertedText,
@@ -164,6 +180,6 @@ func main() {
 		port = "8080"
 	}
 
-	fmt.Println("Server běží na portu", port)
+	log.Println("Server running on port", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
