@@ -43,7 +43,7 @@ Správná odpověď: %s`, question, correctAnswer)
 	payload := OpenRouterRequest{
 		Model: "meta-llama/llama-4-scout:free",
 		Messages: []Message{
-			{Role: "system", Content: "Jsi asistent pro tvorbu kvízových otázek na českých středních a vysokých školách."},
+			{Role: "system", Content: "Jsi asistent pro tvorbu kvízových otázek na českých středních a vysokých školách. Tvoje úkolem je generovat špatné odpovědi k otázkám, píšeš pouze špatné odpovědi. Před každou odpovědí napiš hvězdičku (asterisk)."},
 			{Role: "user", Content: prompt},
 		},
 	}
